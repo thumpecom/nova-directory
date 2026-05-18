@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    { "source": "/api/auth/login",                "destination": "/api/auth?action=login" },
+    { "source": "/api/auth/logout",               "destination": "/api/auth?action=logout" },
+    { "source": "/api/auth/me",                   "destination": "/api/auth?action=me" },
+    { "source": "/api/pages/:id",                 "destination": "/api/pages?id=:id" },
+    { "source": "/api/redirects/:id",             "destination": "/api/redirects?id=:id" },
+    { "source": "/api/ad-accounts/:id",           "destination": "/api/ad-accounts?id=:id" },
+    { "source": "/api/naming-conventions/format", "destination": "/api/naming-conventions?action=format" },
+    { "source": "/api/naming-conventions/rows",   "destination": "/api/naming-conventions?action=rows" },
+    { "source": "/api/naming-conventions/rows/:id", "destination": "/api/naming-conventions?action=rows&id=:id" },
+    { "source": "/novapaw",                       "destination": "/index.html" },
+    { "source": "/novapod",                       "destination": "/index.html" },
+    { "source": "/novalift",                      "destination": "/index.html" }
+  ]
+}
