@@ -13,7 +13,7 @@ export default async function handler(req, res) {
         return res.end(JSON.stringify({ error: 'Invalid or missing store' }));
       }
       const rows = await sql`
-        SELECT id, store, page_type, label, url, position, created_at, updated_at
+        SELECT id, store, page_type, label, url, notes, position, created_at, updated_at
         FROM pages
         WHERE store = ${store}
         ORDER BY page_type, position, created_at
@@ -22,6 +22,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // Notes are intentionally not accepted on create — they're only editable after add.
       const body = await readJsonBody(req);
       const store = normalizeStore(body.store);
       const pageType = String(body.page_type || '').toLowerCase();
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
       const [row] = await sql`
         INSERT INTO pages (id, store, page_type, label, url, position)
         VALUES (${id}, ${store}, ${pageType}, ${label}, ${url}, ${position})
-        RETURNING id, store, page_type, label, url, position, created_at, updated_at
+        RETURNING id, store, page_type, label, url, notes, position, created_at, updated_at
       `;
       return res.end(JSON.stringify({ page: row }));
     }
@@ -52,21 +53,21 @@ export default async function handler(req, res) {
         return res.end(JSON.stringify({ error: 'Missing id' }));
       }
       const body = await readJsonBody(req);
-      const sets = [];
-      const params = {};
-      if (typeof body.label === 'string') { sets.push('label'); params.label = body.label; }
-      if (typeof body.url === 'string') { sets.push('url'); params.url = body.url; }
-      if (sets.length === 0) {
+      const label = typeof body.label === 'string' ? body.label : null;
+      const url = typeof body.url === 'string' ? body.url : null;
+      const notes = typeof body.notes === 'string' ? body.notes : null;
+      if (label === null && url === null && notes === null) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: 'No editable fields provided' }));
       }
       const [row] = await sql`
         UPDATE pages SET
-          label = COALESCE(${params.label ?? null}, label),
-          url = COALESCE(${params.url ?? null}, url),
+          label = COALESCE(${label}, label),
+          url = COALESCE(${url}, url),
+          notes = COALESCE(${notes}, notes),
           updated_at = NOW()
         WHERE id = ${id}
-        RETURNING id, store, page_type, label, url, position, created_at, updated_at
+        RETURNING id, store, page_type, label, url, notes, position, created_at, updated_at
       `;
       if (!row) {
         res.statusCode = 404;

@@ -259,25 +259,19 @@
   select.status-select.active { border-left-color: var(--green); color: var(--green); }
   select.status-select.disabled { border-left-color: var(--red); color: var(--red); }
 
-  /* Naming conventions */
-  .nc-format input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-  table.nc-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  table.nc-table th, table.nc-table td {
-    padding: 8px 10px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  table.nc-table th {
-    font-size: 12px;
-    font-weight: 600;
+  /* Page row notes */
+  .row .row-notes {
+    font-size: 12.5px;
     color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    background: var(--panel-2);
+    font-style: italic;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
-  table.nc-table td input { width: 100%; font-family: inherit; }
-  table.nc-table td input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  .row .row-notes::before {
+    content: "📝 ";
+    font-style: normal;
+    margin-right: 2px;
+  }
 
   /* Modal */
   .modal-backdrop {
@@ -397,7 +391,6 @@
     <div class="sub-tabs" id="sub-tabs">
       <button class="sub-tab" data-sub="pages">Pages</button>
       <button class="sub-tab" data-sub="ad-accounts">Ad Accounts</button>
-      <button class="sub-tab" data-sub="naming">Naming Conventions</button>
     </div>
 
     <div id="tab-content"></div>
@@ -417,8 +410,6 @@ const state = {
   pages: [],       // current store pages
   redirects: [],   // current store redirects (with joined page info)
   adAccounts: [],
-  namingFormat: '',
-  namingRows: [],  // all sections combined
 };
 
 // ============================================================
@@ -579,9 +570,6 @@ async function renderTab() {
     } else if (state.sub === 'ad-accounts') {
       await loadAdAccounts();
       renderAdAccountsTab(root);
-    } else if (state.sub === 'naming') {
-      await loadNaming();
-      renderNamingTab(root);
     }
   } catch (e) { handleErr(e); root.innerHTML = `<div class="empty">Failed to load.</div>`; }
 }
@@ -693,11 +681,15 @@ function renderPageSection(title, type, items, redirectMap) {
     const badge = r
       ? `<button class="redirect-badge" data-redirect-source="${p.id}" title="Click to see full redirect chain">Redirecting →</button>`
       : '';
+    const notesDisplay = p.notes
+      ? `<div class="row-notes">${escapeHTML(p.notes)}</div>`
+      : '';
     return `
       <div class="row">
         <div class="row-main">
           <div class="row-label">${escapeHTML(p.label || '(unlabeled)')}</div>
           ${urlDisplay}
+          ${notesDisplay}
         </div>
         ${badge}
         <div class="row-actions">
@@ -791,9 +783,13 @@ function openEditPageModal(id) {
         <label style="display:block; color: var(--muted); font-size:12px; margin-bottom:4px;">Label</label>
         <input name="label" value="${escapeHTML(p.label)}" style="width:100%;" />
       </div>
-      <div style="margin-bottom: 14px;">
+      <div style="margin-bottom: 10px;">
         <label style="display:block; color: var(--muted); font-size:12px; margin-bottom:4px;">URL</label>
         <input name="url" value="${escapeHTML(p.url)}" style="width:100%;" />
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="display:block; color: var(--muted); font-size:12px; margin-bottom:4px;">Notes (optional)</label>
+        <textarea name="notes" rows="3" style="width:100%;" placeholder="Free-form notes about this page">${escapeHTML(p.notes || '')}</textarea>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button type="button" class="btn" id="edit-page-cancel">Cancel</button>
@@ -807,8 +803,9 @@ function openEditPageModal(id) {
       const form = e.currentTarget;
       const label = form.querySelector('[name=label]').value.trim();
       const url = form.querySelector('[name=url]').value.trim();
+      const notes = form.querySelector('[name=notes]').value;
       try {
-        await api(`/api/pages/${id}`, { method: 'PATCH', body: JSON.stringify({ label, url }) });
+        await api(`/api/pages/${id}`, { method: 'PATCH', body: JSON.stringify({ label, url, notes }) });
         closeModal();
         await loadPagesAndRedirects();
         renderPagesTab(document.getElementById('tab-content'));
@@ -943,141 +940,6 @@ function renderAdAccountsTab(root) {
       } catch (e) { handleErr(e); }
     };
   });
-}
-
-// ============================================================
-// NAMING CONVENTIONS
-// ============================================================
-async function loadNaming() {
-  const [fmt, rows] = await Promise.all([
-    api(`/api/naming-conventions/format?store=${encodeURIComponent(state.store)}`),
-    api(`/api/naming-conventions/rows?store=${encodeURIComponent(state.store)}`),
-  ]);
-  state.namingFormat = fmt.format?.format || '';
-  state.namingRows = rows.rows || [];
-}
-
-function renderNamingTab(root) {
-  const structureRows = state.namingRows.filter(r => r.section === 'structure');
-  const abbrevRows = state.namingRows.filter(r => r.section === 'abbreviations');
-  const exampleRows = state.namingRows.filter(r => r.section === 'examples');
-
-  root.innerHTML = `
-    <div class="section">
-      <div class="section-header"><div class="section-title">Naming Format</div></div>
-      <div class="section-body nc-format">
-        <input type="text" id="nc-format" value="${escapeHTML(state.namingFormat)}" placeholder="[Copywriter Initial]-[Prelander Format]-[Format Version #]-[3-5 Word Descriptor]" />
-        <div style="color: var(--muted); font-size: 12px; margin-top: 6px;">Edit and click outside to save.</div>
-      </div>
-    </div>
-
-    ${renderNamingSection('Structure Breakdown', 'structure',
-      ['Section', 'Meaning', 'Example'], structureRows, true, ['mono', '', 'mono'])}
-
-    ${renderNamingSection('Format Type Abbreviations', 'abbreviations',
-      ['Full Format Name', 'Convention Code'], abbrevRows, false, ['', 'mono'])}
-
-    ${renderNamingSection('Full Examples', 'examples',
-      ['Page Type', 'Naming Convention'], exampleRows, false, ['', 'mono'])}
-  `;
-
-  // format save
-  const fmtInput = document.getElementById('nc-format');
-  fmtInput.onblur = async () => {
-    const val = fmtInput.value;
-    if (val === state.namingFormat) return;
-    try {
-      await api('/api/naming-conventions/format', {
-        method: 'PUT',
-        body: JSON.stringify({ store: state.store, format: val }),
-      });
-      state.namingFormat = val;
-    } catch (e) { handleErr(e); }
-  };
-
-  // wire all sections
-  ['structure', 'abbreviations', 'examples'].forEach(section => {
-    const form = document.getElementById(`add-nc-${section}`);
-    if (form) {
-      form.onsubmit = async (e) => {
-        e.preventDefault();
-        const inputs = form.querySelectorAll('input[data-col]');
-        const payload = { store: state.store, section };
-        inputs.forEach(i => { payload[i.dataset.col] = i.value; });
-        if (Object.keys(payload).every(k => k === 'store' || k === 'section' || !payload[k])) {
-          toast('Fill at least one field.', 'error');
-          return;
-        }
-        try {
-          await api('/api/naming-conventions/rows', { method: 'POST', body: JSON.stringify(payload) });
-          await loadNaming();
-          renderNamingTab(root);
-        } catch (e) { handleErr(e); }
-      };
-    }
-  });
-
-  // wire row edits
-  root.querySelectorAll('tr[data-nc-row]').forEach(tr => {
-    const id = tr.dataset.ncRow;
-    tr.querySelectorAll('input[data-col]').forEach(input => {
-      input.onblur = async () => {
-        try {
-          await api(`/api/naming-conventions/rows/${id}`, {
-            method: 'PATCH',
-            body: JSON.stringify({ [input.dataset.col]: input.value }),
-          });
-        } catch (e) { handleErr(e); }
-      };
-      input.onkeydown = (ev) => { if (ev.key === 'Enter') input.blur(); };
-    });
-    const delBtn = tr.querySelector('[data-delete-nc]');
-    if (delBtn) {
-      delBtn.onclick = async () => {
-        if (!confirm('Delete this row?')) return;
-        try {
-          await api(`/api/naming-conventions/rows/${id}`, { method: 'DELETE' });
-          await loadNaming();
-          renderNamingTab(root);
-        } catch (e) { handleErr(e); }
-      };
-    }
-  });
-}
-
-function renderNamingSection(title, section, headers, rows, threeCols, monoFlags) {
-  const cols = threeCols ? ['col1', 'col2', 'col3'] : ['col1', 'col2'];
-  const headerHTML = headers.map(h => `<th>${escapeHTML(h)}</th>`).join('') + '<th style="width:80px;"></th>';
-  const rowsHTML = rows.map(r => `
-    <tr data-nc-row="${r.id}">
-      ${cols.map((c, i) => `<td><input type="text" data-col="${c}" value="${escapeHTML(r[c])}" class="${monoFlags[i] || ''}" /></td>`).join('')}
-      <td><button class="btn btn-sm btn-danger" data-delete-nc>Delete</button></td>
-    </tr>
-  `).join('');
-  const empty = rows.length === 0
-    ? `<tr><td colspan="${headers.length + 1}" class="empty" style="padding: 14px 12px;">No rows yet.</td></tr>`
-    : '';
-  const addInputs = cols.map((c, i) => `<input type="text" name="${c}" data-col="${c}" placeholder="${escapeHTML(headers[i])}" class="${monoFlags[i] || ''}" />`).join('');
-
-  return `
-    <div class="section">
-      <div class="section-header"><div class="section-title">${escapeHTML(title)}</div></div>
-      <div class="section-body" style="padding: 0;">
-        <table class="nc-table">
-          <thead><tr>${headerHTML}</tr></thead>
-          <tbody>${rowsHTML}${empty}</tbody>
-        </table>
-        <div style="padding: 14px 18px; border-top: 1px solid var(--border);">
-          <form class="add-form" id="add-nc-${section}" style="margin: 0;">
-            ${addInputs}
-            <div class="add-form-actions">
-              <button type="submit" class="btn btn-primary">Add row</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  `;
 }
 
 // ============================================================

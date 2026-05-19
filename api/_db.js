@@ -9,7 +9,6 @@ export const sql = neon(process.env.DATABASE_URL);
 export const STORES = ['NovaPaw', 'NovaLift', 'NovaPod'];
 export const PAGE_TYPES = ['prelander', 'pdp'];
 export const AD_STATUSES = ['active', 'disabled'];
-export const NAMING_SECTIONS = ['structure', 'abbreviations', 'examples'];
 
 export function normalizeStore(input) {
   if (!input) return null;
