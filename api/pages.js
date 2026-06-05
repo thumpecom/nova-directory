@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         SELECT id, store, page_type, label, url, notes, position, created_at, updated_at
         FROM pages
         WHERE store = ${store}
-        ORDER BY page_type, position, created_at
+        ORDER BY created_at DESC, id DESC
       `;
       return res.end(JSON.stringify({ pages: rows }));
     }

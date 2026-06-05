@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         SELECT id, store, name, status, notes, position, created_at, updated_at
         FROM ad_accounts
         WHERE store = ${store}
-        ORDER BY position, created_at
+        ORDER BY created_at DESC, id DESC
       `;
       return res.end(JSON.stringify({ accounts: rows }));
     }
